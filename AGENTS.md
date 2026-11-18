@@ -1,4 +1,4 @@
-# azure-pipelines-templates: agent context
+# azure-pipeline-templates: agent context
 
 Templates for pipelines in Azure DevOps.
 
@@ -26,7 +26,7 @@ Templates for pipelines in Azure DevOps.
 - Headers stay: short documentation still has sections.
 - Linters for YAML and Markdown are never run by an agent.
 - Markdown files are formatted with `node ../neatmd/bin/cli.js <file>`, and the agent reads the diff it makes.
-- Commit only when asked, on create a feature branch if the local checkout is on main, and never push.
+- Commit only when asked, only create a feature branch if the local checkout is on main, and never push.
   Shell scripts are `snake_case` and committed with the executable bit (`git update-index --chmod=+x`).
 - Documentation and comments are as short as possible.
 - `istarci` runs on every commit and is used to check locally the pipelines before pushing git commits.
