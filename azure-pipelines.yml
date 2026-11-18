@@ -1,5 +1,3 @@
-# tests the templates of the commit under test, as a project uses them
-# pull requests run it through the build validation of the branch policy, as Azure Repos ignores pr:
 trigger:
   batch: true
   branches:
