@@ -27,6 +27,7 @@ fail() {
 check_template() {
   local file="$1" declared used name
   declared="$(yq '.parameters[].name' "$file" | sort)"
+  # shellcheck disable=SC2016 # matches the expressions as written, which Azure expands
   used="$(grep -o '\${{ *parameters\.[A-Za-z0-9_]*' "$file" | sed 's/.*parameters\.//' | sort -u || true)"
   while read -r name; do fail "$file" "parameter $name is used and not declared"; done < <(comm -13 <(echo "$declared") <(echo "$used") | grep . || true)
   while read -r name; do fail "$file" "parameter $name is declared and not used"; done < <(comm -23 <(echo "$declared") <(echo "$used") | grep . || true)
@@ -42,6 +43,7 @@ check_template() {
 check_steps() {
   local file="$1" label="$2"
   # Azure pastes a parameter into the shell code as text, where a variable of env: stays data
+  # shellcheck disable=SC2016 # matches the expressions as written, which Azure expands
   if yq '.. | select(tag == "!!map") | (.bash, .script, .pwsh, .powershell) | select(. != null)' "$file" | grep -q '\${{'; then
     fail "$label" "a script uses a template expression, which goes through env: instead"
   fi
