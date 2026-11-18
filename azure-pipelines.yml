@@ -1,0 +1,45 @@
+trigger:
+  batch: true
+  branches:
+    include:
+      - main
+
+jobs:
+  - job: check_templates
+    displayName: Check the templates
+    pool:
+      vmImage: ubuntu-latest
+    timeoutInMinutes: 10
+    steps:
+      - checkout: self
+        fetchDepth: 1
+        persistCredentials: false
+      - bash: |
+          set -euo pipefail
+          tools="$(mktemp -d)"
+          yq_version="v4.54.3"
+          yq_sha256_amd64="129534601871538efe0ba4c5e62a34fb1d5f469bcb975c4fddeb467d82974973"
+          yq_sha256_arm64="89f69310b61b68d1245065a1241d1fc843f7a36cd6103ffd77ad987613bd1b67"
+          case "$(uname -m)" in
+            x86_64) arch=amd64; sha256="$yq_sha256_amd64" ;;
+            aarch64) arch=arm64; sha256="$yq_sha256_arm64" ;;
+            *) echo "No yq for $(uname -m)" >&2; exit 1 ;;
+          esac
+          curl -fsSL --proto "=https" --tlsv1.2 -o "$tools/yq" "https://github.com/mikefarah/yq/releases/download/${yq_version}/yq_linux_${arch}"
+          echo "$sha256  $tools/yq" | sha256sum --check --strict
+          chmod +x "$tools/yq"
+          export PATH="$tools:$PATH"
+          test/check_templates.sh
+        displayName: Check the templates against the rules
+        target:
+          settableVariables: none
+
+  - template: jobs/dotnet-quality.yml
+    parameters:
+      workingDirectory: test/fixtures/dotnet
+      # keeps the job green only when the steps run, as the fixture reads the variable they set
+      beforeBuildSteps:
+        - bash: echo "##vso[task.setvariable variable=FIXTURE_BEFORE_BUILD_STEPS]ran"
+          displayName: Set the variable of the fixture
+      # keeps the job green only when the arguments reach dotnet test, as the fixture holds a test that fails
+      testArgs: --report-xunit-trx --coverage --coverage-output-format cobertura --filter-not-namespace 'Fixture.Tests.LeftOut*'

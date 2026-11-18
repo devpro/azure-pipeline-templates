@@ -1,0 +1,94 @@
+# Lints, builds and tests .NET code, with the test results and the coverage in the Tests and Code Coverage tabs of the run.
+parameters:
+  - name: name
+    displayName: Name of the job, unique in the stage
+    type: string
+    default: dotnet_quality
+  - name: pool
+    displayName: Pool of the job
+    type: object
+    default:
+      vmImage: ubuntu-latest
+  - name: timeoutInMinutes
+    displayName: Minutes the job runs before it is cancelled
+    type: number
+    default: 60
+  - name: dotnetVersion
+    displayName: Version of the .NET SDK, 10.0.x for the latest patch of 10.0
+    type: string
+    default: 10.0.x
+  - name: workingDirectory
+    displayName: Directory of the solution or project, relative to the repository root
+    type: string
+    default: .
+  - name: beforeBuildSteps
+    displayName: Steps run after the restore and before the build, to start a service or install a tool the tests need
+    type: stepList
+    default: []
+  - name: testArgs
+    displayName: >-
+      Arguments of dotnet test, as shell words, which write the TRX and Cobertura files the run publishes,
+      for example "--report-xunit-trx --coverage --coverage-output-format cobertura" with Microsoft.Testing.Platform
+    type: string
+    default: ""
+
+jobs:
+  - job: ${{ parameters.name }}
+    displayName: .NET quality
+    pool: ${{ parameters.pool }}
+    timeoutInMinutes: ${{ parameters.timeoutInMinutes }}
+    variables:
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_NOLOGO: "1"
+    steps:
+      - checkout: self
+        fetchDepth: 1
+        persistCredentials: false
+      - task: UseDotNet@2
+        displayName: Install the .NET SDK
+        inputs:
+          packageType: sdk
+          version: ${{ parameters.dotnetVersion }}
+      # keeps the code under test from setting a variable that a later step reads
+      - bash: dotnet restore
+        displayName: Restore the packages
+        workingDirectory: ${{ parameters.workingDirectory }}
+        target:
+          settableVariables: none
+      - bash: dotnet format --no-restore --verify-no-changes --severity warn --verbosity diagnostic
+        displayName: Lint the code
+        workingDirectory: ${{ parameters.workingDirectory }}
+        target:
+          settableVariables: none
+      - ${{ parameters.beforeBuildSteps }}
+      - bash: dotnet build --no-restore --configuration Debug
+        displayName: Build the code
+        workingDirectory: ${{ parameters.workingDirectory }}
+        target:
+          settableVariables: none
+      - bash: |
+          set -euo pipefail
+          # parses shell words, quotes included, from a variable rather than from the shell code
+          test_args=()
+          eval "test_args=(${DOTNET_TEST_ARGS})"
+          dotnet test --no-build --configuration Debug --results-directory "$AGENT_TEMPDIRECTORY/TestResults" "${test_args[@]}"
+        displayName: Run the tests
+        workingDirectory: ${{ parameters.workingDirectory }}
+        target:
+          settableVariables: none
+        env:
+          ASPNETCORE_ENVIRONMENT: Development
+          DOTNET_TEST_ARGS: ${{ parameters.testArgs }}
+      # publishes after a failed test too, which is when the results matter most
+      - task: PublishTestResults@2
+        displayName: Publish the test results
+        condition: succeededOrFailed()
+        inputs:
+          testResultsFormat: VSTest
+          testResultsFiles: "**/*.trx"
+          searchFolder: $(Agent.TempDirectory)/TestResults
+      - task: PublishCodeCoverageResults@2
+        displayName: Publish the code coverage
+        condition: succeededOrFailed()
+        inputs:
+          summaryFileLocation: $(Agent.TempDirectory)/TestResults/**/*.cobertura.xml

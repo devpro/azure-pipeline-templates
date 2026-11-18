@@ -1,0 +1,8 @@
+# IstarCI configuration, read from the root of the repository.
+
+runner:
+  # stands for the hosted ubuntu-latest, which container-images compares it with
+  image: ghcr.io/devpro/ubuntu-node:latest
+  toolchainImages:
+    # the SDK of UseDotNet@2, on Ubuntu as on the hosted agent
+    dotnet: ghcr.io/devpro/ubuntu-dotnet:latest
