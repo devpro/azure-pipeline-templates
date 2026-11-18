@@ -57,7 +57,8 @@ check_catalog() {
   tested="$(yq '.jobs[] | select(has("template")) | .template' azure-pipelines.yml | sed -E 's|^jobs/(.*)\.yml$|\1|' | sort -u)"
   while read -r name; do fail azure-pipelines.yml "template $name is not used, so no job tests it"; done < <(comm -23 <(echo "$templates") <(echo "$tested") | grep . || true)
   for name in $templates; do
-    grep -qx "### $name" README.md || fail README.md "template $name has no section"
+    grep -qx "## $name" docs/templates.md || fail docs/templates.md "template $name has no section"
+    grep -qxF -- "- [$name](docs/templates.md#$name)" README.md || fail README.md "template $name has no link to its section"
   done
 
   # lists each parameter that a job of the pipeline sets, as template:parameter
