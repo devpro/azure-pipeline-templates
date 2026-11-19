@@ -3,6 +3,7 @@ parameters:
   - name: name
     displayName: Name of the job, unique in the stage
     type: string
+    # use an underscore, as a job ID accepts only letters, digits and underscores
     default: dotnet_quality
   - name: pool
     displayName: Pool of the job
